@@ -157,6 +157,8 @@ def parse_comma_separated_list(s):
 @click.option('--workers',      help='DataLoader worker processes', metavar='INT',              type=click.IntRange(min=1), default=3, show_default=True)
 @click.option('-n','--dry-run', help='Print training options and exit',                         is_flag=True)
 @click.option('--restart_every',help='Time interval in seconds to restart code', metavar='INT', type=int, default=9999999, show_default=True)
+@click.option('--sd_loss',      help='Enable SD loss', metavar='BOOL',                          type=bool, default=False, show_default=True)
+@click.option('--sd_aug',       help='Enable augmentation for SD loss', metavar='BOOL',         type=bool, default=True, show_default=True)
 
 
 def main(**kwargs):
@@ -234,7 +236,7 @@ def main(**kwargs):
         desc += f'-{opts.desc}'
 
     # Projected and Multi-Scale Discriminators
-    c.loss_kwargs = dnnlib.EasyDict(class_name='training.loss.ProjectedGANLoss')
+    c.loss_kwargs = dnnlib.EasyDict(class_name='training.loss.ProjectedGANLoss', sd_loss=opts.sd_loss, sd_aug=opts.sd_aug)
     c.D_kwargs = dnnlib.EasyDict(
         class_name='pg_modules.discriminator.ProjectedDiscriminator',
         diffaug=True,

@@ -13,6 +13,7 @@ import torch
 import torch.nn.functional as F
 from torch_utils import training_stats
 from torch_utils.ops import upfirdn2d
+from training.sd_loss import SDLoss
 
 
 class Loss:
@@ -29,10 +30,16 @@ class ProjectedGANLoss(Loss):
         self.D = D
         self.blur_init_sigma = blur_init_sigma
         self.blur_fade_kimg = blur_fade_kimg
+        self.sd_loss_module = SDLoss(device, use_aug=kwargs.get('sd_aug', True)) if kwargs.get('sd_loss', False) else None
 
     def run_G(self, z, c, update_emas=False):
         ws = self.G.mapping(z, c, update_emas=update_emas)
         img = self.G.synthesis(ws, c, update_emas=False)
+        return img
+
+    def run_G_ema(self, z, c):
+        ws = self.G_ema.mapping(z, c)
+        img = self.G_ema.synthesis(ws, c)
         return img
 
     def run_D(self, img, c, blur_sigma=0, update_emas=False):
@@ -62,14 +69,22 @@ class ProjectedGANLoss(Loss):
                     gen_img = self.run_G(gen_z, gen_c)
                     gen_logits = self.run_D(gen_img, gen_c, blur_sigma=blur_sigma)
                     loss_Gmain = (-gen_logits).mean()
+                    
+                    if self.sd_loss_module is not None:
+                        with torch.no_grad():
+                            gen_img_ema = self.run_G_ema(gen_z, gen_c)
+                        loss_G_sd = self.sd_loss_module(gen_img, gen_img_ema)
+                    else:
+                        loss_G_sd = torch.tensor(0.0, device=gen_z.device)
 
                 # Logging
                 training_stats.report('Loss/scores/fake', gen_logits)
                 training_stats.report('Loss/signs/fake', gen_logits.sign())
                 training_stats.report('Loss/G/loss', loss_Gmain)
+                training_stats.report('Loss/G/loss_sd', loss_G_sd)
 
             with torch.autograd.profiler.record_function('Gmain_backward'):
-                loss_Gmain.backward()
+                (loss_Gmain + loss_G_sd).backward()
 
         if do_Dmain:
 
