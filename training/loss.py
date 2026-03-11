@@ -45,7 +45,7 @@ class ProjectedGANLoss(Loss):
         logits = self.D(img, c)
         return logits
 
-    def accumulate_gradients(self, phase, real_img, real_c, gen_z, gen_c, gain, cur_nimg):
+    def accumulate_gradients(self, phase, real_img, real_c, gen_z, gen_c, gain, cur_nimg, fp32=True):
         assert phase in ['Gmain', 'Greg', 'Gboth', 'Dmain', 'Dreg', 'Dboth']
         do_Gmain = (phase in ['Gmain', 'Gboth'])
         do_Dmain = (phase in ['Dmain', 'Dboth'])
@@ -58,9 +58,10 @@ class ProjectedGANLoss(Loss):
 
             # Gmain: Maximize logits for generated images.
             with torch.autograd.profiler.record_function('Gmain_forward'):
-                gen_img = self.run_G(gen_z, gen_c)
-                gen_logits = self.run_D(gen_img, gen_c, blur_sigma=blur_sigma)
-                loss_Gmain = (-gen_logits).mean()
+                with torch.autocast(device_type=gen_z.device.type, dtype=torch.bfloat16, enabled=not fp32):
+                    gen_img = self.run_G(gen_z, gen_c)
+                    gen_logits = self.run_D(gen_img, gen_c, blur_sigma=blur_sigma)
+                    loss_Gmain = (-gen_logits).mean()
 
                 # Logging
                 training_stats.report('Loss/scores/fake', gen_logits)
@@ -74,9 +75,10 @@ class ProjectedGANLoss(Loss):
 
             # Dmain: Minimize logits for generated images.
             with torch.autograd.profiler.record_function('Dgen_forward'):
-                gen_img = self.run_G(gen_z, gen_c, update_emas=True)
-                gen_logits = self.run_D(gen_img, gen_c, blur_sigma=blur_sigma)
-                loss_Dgen = (F.relu(torch.ones_like(gen_logits) + gen_logits)).mean()
+                with torch.autocast(device_type=gen_z.device.type, dtype=torch.bfloat16, enabled=not fp32):
+                    gen_img = self.run_G(gen_z, gen_c, update_emas=True)
+                    gen_logits = self.run_D(gen_img, gen_c, blur_sigma=blur_sigma)
+                    loss_Dgen = (F.relu(torch.ones_like(gen_logits) + gen_logits)).mean()
 
                 # Logging
                 training_stats.report('Loss/scores/fake', gen_logits)
@@ -87,9 +89,10 @@ class ProjectedGANLoss(Loss):
 
             # Dmain: Maximize logits for real images.
             with torch.autograd.profiler.record_function('Dreal_forward'):
-                real_img_tmp = real_img.detach().requires_grad_(False)
-                real_logits = self.run_D(real_img_tmp, real_c, blur_sigma=blur_sigma)
-                loss_Dreal = (F.relu(torch.ones_like(real_logits) - real_logits)).mean()
+                with torch.autocast(device_type=gen_z.device.type, dtype=torch.bfloat16, enabled=not fp32):
+                    real_img_tmp = real_img.detach().requires_grad_(False)
+                    real_logits = self.run_D(real_img_tmp, real_c, blur_sigma=blur_sigma)
+                    loss_Dreal = (F.relu(torch.ones_like(real_logits) - real_logits)).mean()
 
                 # Logging
                 training_stats.report('Loss/scores/real', real_logits)

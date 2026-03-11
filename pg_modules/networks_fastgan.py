@@ -158,7 +158,9 @@ class Generator(nn.Module):
         ngf=128,
         cond=0,
         mapping_kwargs={},
-        synthesis_kwargs={}
+        synthesis_kwargs={},
+        num_fp16_res=None,
+        conv_clamp=None,
     ):
         super().__init__()
         self.z_dim = z_dim

@@ -122,6 +122,7 @@ def training_loop(
     abort_fn                = None,     # Callback function for determining whether to abort training. Must return consistent results across ranks.
     progress_fn             = None,     # Callback function for updating training progress. Called for all ranks.
     restart_every           = -1,       # Time interval in seconds to exit code
+    fp32                    = True,     # Use float32 for training
 ):
     # Initialize.
     start_time = time.time()
@@ -299,7 +300,7 @@ def training_loop(
                 phase.module.feature_network.requires_grad_(False)
 
             for real_img, real_c, gen_z, gen_c in zip(phase_real_img, phase_real_c, phase_gen_z, phase_gen_c):
-                loss.accumulate_gradients(phase=phase.name, real_img=real_img, real_c=real_c, gen_z=gen_z, gen_c=gen_c, gain=phase.interval, cur_nimg=cur_nimg)
+                loss.accumulate_gradients(phase=phase.name, real_img=real_img, real_c=real_c, gen_z=gen_z, gen_c=gen_c, gain=phase.interval, cur_nimg=cur_nimg, fp32=fp32)
             phase.module.requires_grad_(False)
 
             # Update weights.
