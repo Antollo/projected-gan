@@ -22,7 +22,7 @@ from tqdm import tqdm
 #----------------------------------------------------------------------------
 
 class MetricOptions:
-    def __init__(self, G=None, G_kwargs={}, dataset_kwargs={}, num_gpus=1, rank=0, device=None, progress=None, cache=True, run_dir=None, cur_nimg=None, snapshot_pkl=None):
+    def __init__(self, G=None, G_kwargs={}, dataset_kwargs={}, num_gpus=1, rank=0, device=None, progress=None, cache=True, run_dir=None, cur_nimg=None, snapshot_pkl=None, batch_gpu=4):
         assert 0 <= rank < num_gpus
         self.G              = G
         self.G_kwargs       = dnnlib.EasyDict(G_kwargs)
@@ -35,6 +35,7 @@ class MetricOptions:
         self.run_dir = run_dir
         self.cur_nimg = cur_nimg
         self.snapshot_pkl = snapshot_pkl
+        self.batch_gpu = batch_gpu
 
 #----------------------------------------------------------------------------
 
@@ -262,7 +263,7 @@ def compute_feature_stats_for_dataset(opts, detector_url, detector_kwargs, rel_l
 
 def compute_feature_stats_for_generator(opts, detector_url, detector_kwargs, rel_lo=0, rel_hi=1, batch_size=64, batch_gen=None, swav=False, sfid=False, **stats_kwargs):
     if batch_gen is None:
-        batch_gen = min(batch_size, 4)
+        batch_gen = min(batch_size, opts.batch_gpu)
     assert batch_size % batch_gen == 0
 
     # Setup generator and labels.
@@ -278,21 +279,21 @@ def compute_feature_stats_for_generator(opts, detector_url, detector_kwargs, rel
     detector = get_feature_detector(url=detector_url, device=opts.device, num_gpus=opts.num_gpus, rank=opts.rank, verbose=progress.verbose)
 
     # Main loop.
-    while not stats.is_full():
-        images = []
-        for _i in range(batch_size // batch_gen):
-            z = torch.randn([batch_gen, G.z_dim], device=opts.device)
-            # img = G(z=z, c=next(c_iter), truncation_psi=0.1, **opts.G_kwargs)
-            img = G(z=z, c=next(c_iter), **opts.G_kwargs)
-            img = (img * 127.5 + 128).clamp(0, 255).to(torch.uint8)
-            images.append(img)
-        images = torch.cat(images)
-        if images.shape[1] == 1:
-            images = images.repeat([1, 3, 1, 1])
+    with torch.no_grad():
+        while not stats.is_full():
+            images = []
+            for _i in range(batch_size // batch_gen):
+                z = torch.randn([batch_gen, G.z_dim], device=opts.device)
+                # img = G(z=z, c=next(c_iter), truncation_psi=0.1, **opts.G_kwargs)
+                img = G(z=z, c=next(c_iter), **opts.G_kwargs)
+                img = (img * 127.5 + 128).clamp(0, 255).to(torch.uint8)
+                images.append(img)
+            images = torch.cat(images)
+            if images.shape[1] == 1:
+                images = images.repeat([1, 3, 1, 1])
 
-        with torch.no_grad():
             features = detector(images.to(opts.device), **detector_kwargs)
 
-        stats.append_torch(features, num_gpus=opts.num_gpus, rank=opts.rank)
-        progress.update(stats.num_items)
+            stats.append_torch(features, num_gpus=opts.num_gpus, rank=opts.rank)
+            progress.update(stats.num_items)
     return stats
