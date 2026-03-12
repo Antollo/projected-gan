@@ -30,7 +30,8 @@ class ProjectedGANLoss(Loss):
         self.D = D
         self.blur_init_sigma = blur_init_sigma
         self.blur_fade_kimg = blur_fade_kimg
-        self.sd_loss_module = SDLoss(device, use_aug=kwargs.get('sd_aug', True)) if kwargs.get('sd_loss', False) else None
+        self.sd_loss_weight = kwargs.get('sd_loss', 0.0)
+        self.sd_loss_module = SDLoss(device, use_aug=kwargs.get('sd_aug', True)) if self.sd_loss_weight > 0 else None
 
     def run_G(self, z, c, update_emas=False):
         ws = self.G.mapping(z, c, update_emas=update_emas)
@@ -84,7 +85,7 @@ class ProjectedGANLoss(Loss):
                 training_stats.report('Loss/G/loss_sd', loss_G_sd)
 
             with torch.autograd.profiler.record_function('Gmain_backward'):
-                (loss_Gmain + loss_G_sd).backward()
+                (loss_Gmain + loss_G_sd * self.sd_loss_weight).backward()
 
         if do_Dmain:
 
