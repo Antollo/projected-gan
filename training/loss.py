@@ -31,7 +31,7 @@ class ProjectedGANLoss(Loss):
         self.blur_init_sigma = blur_init_sigma
         self.blur_fade_kimg = blur_fade_kimg
         self.sd_loss_weight = kwargs.get('sd_loss', 0.0)
-        self.sd_loss_module = SDLoss(device, use_aug=kwargs.get('sd_aug', True)) if self.sd_loss_weight > 0 else None
+        self.sd_loss_module = SDLoss(device, use_aug=kwargs.get('sd_aug', True)) # if self.sd_loss_weight > 0 else None
 
     def run_G(self, z, c, update_emas=False):
         ws = self.G.mapping(z, c, update_emas=update_emas)
@@ -71,12 +71,12 @@ class ProjectedGANLoss(Loss):
                     gen_logits = self.run_D(gen_img, gen_c, blur_sigma=blur_sigma)
                     loss_Gmain = (-gen_logits).mean()
                     
-                    if self.sd_loss_module is not None:
-                        with torch.no_grad():
-                            gen_img_ema = self.run_G_ema(gen_z, gen_c)
-                        loss_G_sd = self.sd_loss_module(gen_img, gen_img_ema)
-                    else:
-                        loss_G_sd = torch.tensor(0.0, device=gen_z.device)
+                    #if self.sd_loss_module is not None:
+                    with torch.no_grad():
+                        gen_img_ema = self.run_G_ema(gen_z, gen_c)
+                    loss_G_sd = self.sd_loss_module(gen_img, gen_img_ema)
+                    #else:
+                    #    loss_G_sd = torch.tensor(0.0, device=gen_z.device)
 
                 # Logging
                 training_stats.report('Loss/scores/fake', gen_logits)
@@ -85,7 +85,10 @@ class ProjectedGANLoss(Loss):
                 training_stats.report('Loss/G/loss_sd', loss_G_sd)
 
             with torch.autograd.profiler.record_function('Gmain_backward'):
-                (loss_Gmain + loss_G_sd * self.sd_loss_weight).backward()
+                if self.sd_loss_weight > 0:
+                    (loss_Gmain + loss_G_sd * self.sd_loss_weight).backward()
+                else:
+                    loss_Gmain.backward()
 
         if do_Dmain:
 
