@@ -31,7 +31,8 @@ class ProjectedGANLoss(Loss):
         self.blur_init_sigma = blur_init_sigma
         self.blur_fade_kimg = blur_fade_kimg
         self.sd_loss_weight = kwargs.get('sd_loss', 0.0)
-        self.sd_loss_module = SDLoss(device, use_aug=kwargs.get('sd_aug', True)) # if self.sd_loss_weight > 0 else None
+        loss_type = kwargs.get('sd_loss_type', 'lpips')
+        self.sd_loss_module = SDLoss(device, use_aug=kwargs.get('sd_aug', True), loss_type=loss_type) # if self.sd_loss_weight > 0 else None
 
     def run_G(self, z, c, update_emas=False):
         ws = self.G.mapping(z, c, update_emas=update_emas)

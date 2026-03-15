@@ -19,6 +19,7 @@ dependencies = [
     "six==1.16.0",
     "lpips<=0.1.4",
     "kornia<=0.8.2",
+    "pytorch-msssim<=1.0.0",
 ]
 
 [tool.uv.sources]
