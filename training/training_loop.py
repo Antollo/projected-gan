@@ -389,7 +389,7 @@ def training_loop(
         # Save network snapshot.
         snapshot_pkl = None
         snapshot_data = None
-        if (network_snapshot_ticks is not None) and (done or cur_tick % network_snapshot_ticks == 0):
+        if (network_snapshot_ticks is not None) and (done or cur_tick % network_snapshot_ticks == 0 or early_snapshots):
             snapshot_data = dict(G=G, D=D, G_ema=G_ema, training_set_kwargs=dict(training_set_kwargs))
             for key, value in snapshot_data.items():
                 if isinstance(value, torch.nn.Module):
@@ -398,7 +398,7 @@ def training_loop(
 
         # Save Checkpoint if needed
         if (rank == 0) and (restart_every > 0) and (network_snapshot_ticks is not None) and (
-                done or cur_tick % network_snapshot_ticks == 0):
+                done or cur_tick % network_snapshot_ticks == 0 or early_snapshots):
             snapshot_pkl = misc.get_ckpt_path(run_dir)
             # save as tensors to avoid error for multi GPU
             snapshot_data['progress'] = {
