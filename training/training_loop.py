@@ -380,8 +380,8 @@ def training_loop(
 
         # Save image snapshot.
         early_snapshots = False
-        if cur_tick * kimg_per_tick <= 500:
-            early_snapshots = cur_tick % (network_snapshot_ticks // 2) == 0 and (cur_tick + 1) % network_snapshot_ticks != 0
+        if cur_tick * kimg_per_tick <= 200:
+            early_snapshots = (cur_tick % network_snapshot_ticks == network_snapshot_ticks // 2)
         if (rank == 0) and (image_snapshot_ticks is not None) and (done or cur_tick % image_snapshot_ticks == 0 or early_snapshots):
             images = torch.cat([G_ema(z=z, c=c, noise_mode='const').cpu() for z, c in zip(grid_z, grid_c)]).numpy()
             save_image_grid(images, os.path.join(run_dir, f'fakes{cur_nimg//1000:06d}.png'), drange=[-1,1], grid_size=grid_size)
