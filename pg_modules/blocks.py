@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.utils import spectral_norm
+from pg_modules.gbn import GhostBatchNorm2d
 
 
 ### single layers
@@ -28,7 +29,7 @@ def NormLayer(c, mode='batch'):
     if mode == 'group':
         return nn.GroupNorm(c//2, c)
     elif mode == 'batch':
-        return nn.BatchNorm2d(c)
+        return GhostBatchNorm2d(c)
 
 
 ### Activations

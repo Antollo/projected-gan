@@ -160,6 +160,7 @@ def parse_comma_separated_list(s):
 @click.option('--sd_loss',      help='SD loss weight', metavar='FLOAT',                         type=float, default=0.0, show_default=True)
 @click.option('--sd_aug',       help='Enable augmentation for SD loss', metavar='BOOL',         type=bool, default=True, show_default=True)
 @click.option('--sd_loss_type', help='Which loss to use: lpips or msssim', metavar='STR',       type=click.Choice(['lpips', 'msssim']), default='lpips', show_default=True)
+@click.option('--gbn_splits',   help='Number of splits for GhostBatchNorm2d', metavar='INT',    type=int, default=1, show_default=True)
 
 
 def main(**kwargs):
@@ -193,6 +194,7 @@ def main(**kwargs):
     c.image_snapshot_ticks = c.network_snapshot_ticks = opts.snap
     c.random_seed = c.training_set_kwargs.random_seed = opts.seed
     c.data_loader_kwargs.num_workers = opts.workers
+    c.gbn_splits = opts.gbn_splits
 
     # Sanity checks.
     if c.batch_size % c.num_gpus != 0:

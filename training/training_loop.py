@@ -31,6 +31,7 @@ from torch_utils.ops import grid_sample_gradfix
 
 import legacy
 from metrics import metric_main
+from pg_modules.gbn import GhostBatchNorm2d
 
 #----------------------------------------------------------------------------
 
@@ -123,8 +124,15 @@ def training_loop(
     progress_fn             = None,     # Callback function for updating training progress. Called for all ranks.
     restart_every           = -1,       # Time interval in seconds to exit code
     fp32                    = True,     # Use float32 for training
+    gbn_splits              = 1,        # Number of splits for GhostBatchNorm2d
 ):
     # Initialize.
+
+
+    # Set default splits for GhostBatchNorm2d
+    print(f"Using {gbn_splits} splits for GhostBatchNorm2d")
+    GhostBatchNorm2d.DEFAULT_SPLITS = gbn_splits
+
     start_time = time.time()
     device = torch.device('cuda', rank)
     np.random.seed(random_seed * num_gpus + rank)
